@@ -1,18 +1,32 @@
 import React from 'react';
-import { Link, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Upload, Database, Activity, FileSpreadsheet, MapPin, Users } from 'lucide-react';
+import { Link, useLocation, Outlet } from 'react-router-dom';
+import { LayoutDashboard, Upload, Database, Activity, FileSpreadsheet, MapPin, Users, ShieldCheck, LogOut } from 'lucide-react';
+import { useAuth } from '../contexts/AuthContext';
 
 const navItems = [
-  { path: '/', label: 'Dashboard', icon: LayoutDashboard },
-  { path: '/inventory', label: 'Inventory', icon: Database },
-  { path: '/import', label: 'Daily Import', icon: Upload },
-  { path: '/reconciliation', label: 'Reconciliation', icon: Activity },
-  { path: '/tracking', label: 'Tracking', icon: MapPin },
-  { path: '/vendors', label: 'Vendors', icon: Users },
+  { path: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, roles: ['admin', 'user'] },
+  { path: '/inventory', label: 'Inventory', icon: Database, roles: ['admin', 'user'] },
+  { path: '/tracking', label: 'Tracking', icon: MapPin, roles: ['admin', 'user'] },
+  { path: '/vendors', label: 'Vendors', icon: Users, roles: ['admin'], allowVendorAccess: true },
+  { path: '/import', label: 'Daily Import', icon: Upload, roles: ['admin'] },
+  { path: '/reconciliation', label: 'Reconciliation', icon: Activity, roles: ['admin'] },
+  { path: '/admin/users', label: 'User Approvals', icon: ShieldCheck, roles: ['admin'] },
 ];
 
-export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+export const Layout: React.FC = () => {
   const location = useLocation();
+  const { user, signOut } = useAuth();
+
+  const filteredNavItems = navItems.filter((item) => {
+    if (!user) return false;
+    if (item.roles.includes(user.role)) {
+      return true;
+    }
+    if (item.allowVendorAccess && user.role === 'user' && user.vendorAccess) {
+      return true;
+    }
+    return false;
+  });
 
   return (
     <div className="min-h-screen bg-gray-50 flex">
@@ -27,7 +41,7 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
         </div>
 
         <nav className="flex-1 p-4 space-y-1">
-          {navItems.map(item => {
+          {filteredNavItems.map((item) => {
             const Icon = item.icon;
             const isActive = location.pathname === item.path;
             return (
@@ -35,8 +49,8 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
                 key={item.path}
                 to={item.path}
                 className={`flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors ${
-                  isActive 
-                    ? 'bg-emerald-600 text-white' 
+                  isActive
+                    ? 'bg-emerald-600 text-white'
                     : 'text-slate-300 hover:bg-slate-800 hover:text-white'
                 }`}
               >
@@ -49,8 +63,8 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
 
         <div className="p-4 border-t border-slate-700">
           <div className="text-xs text-slate-400">
-            <p>v1.0.0</p>
-            <p>Local Mode</p>
+            <p>{user ? `${user.role.toUpperCase()} access` : 'Not signed in'}</p>
+            <p className="mt-2">v1.0.0</p>
           </div>
         </div>
       </aside>
@@ -60,22 +74,27 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
           <div className="px-8 h-20 flex items-center justify-between">
             <div>
               <h2 className="text-2xl md:text-3xl font-semibold">
-                {navItems.find(n => n.path === location.pathname)?.label || 'OmniPay Inventory'}
+                {filteredNavItems.find((n) => n.path === location.pathname)?.label || 'OmniPay Inventory'}
               </h2>
               <p className="text-sm text-slate-300 mt-1 hidden md:block">Your inventory overview and analytics dashboard</p>
             </div>
-            <div className="text-sm text-slate-300">
-              {new Date().toLocaleDateString('en-NG', { 
-                weekday: 'long', 
-                year: 'numeric', 
-                month: 'long', 
-                day: 'numeric' 
-              })}
+            <div className="flex items-center gap-4">
+              <div className="text-sm text-slate-300 text-right">
+                <div>{user?.email}</div>
+                <div className="text-xs text-slate-400">{user?.approved ? 'Approved user' : 'Pending approval'}</div>
+              </div>
+              <button
+                onClick={signOut}
+                className="inline-flex items-center gap-2 rounded-2xl border border-slate-700 bg-slate-900 px-4 py-2 text-sm text-slate-200 hover:bg-slate-800"
+              >
+                <LogOut className="w-4 h-4" />
+                Sign out
+              </button>
             </div>
           </div>
         </header>
         <div className="p-8 pt-20 min-h-[calc(100vh-5rem)] bg-gray-50">
-          {children}
+          <Outlet />
 
           <footer className="mt-8 bg-slate-100 text-slate-600 p-4 rounded-md text-sm">
             © {new Date().getFullYear()} OmniPay — Digitizing Payment Solution - Simplifying B2B Trade Payments

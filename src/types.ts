@@ -24,6 +24,14 @@ export interface InventoryRecord {
   lastReconciledAt: string | null;
 }
 
+export interface AppUser {
+  id: string;
+  email: string;
+  role: 'admin' | 'user';
+  approved: boolean;
+  vendorAccess?: boolean;
+}
+
 export interface PortalRecord {
   id: string;
   batchId: string;
