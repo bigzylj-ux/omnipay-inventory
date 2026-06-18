@@ -219,16 +219,43 @@ export const VendorsPage: React.FC = () => {
           return;
         }
 
-        const header = rows[0].map((cell: any) => String(cell || '').trim().toLowerCase());
+        const rawHeader = rows[0] as any[];
+        const header = rawHeader.map((cell: any) => String(cell || '').trim().toLowerCase());
         const serialIndex = header.findIndex((key: string) => key.includes('serial'));
-        const costIndex = header.findIndex((key: string) => key.includes('cost'));
+        const costIndex = header.findIndex((key: string) => key.includes('cost') && !key.includes('fault'));
         const faultIndices = header
           .map((key: string, index: number) => ({ key, index }))
-          .filter((item: { key: string; index: number }) => item.key.includes('fault'))
-          .map((item: { key: string; index: number }) => item.index);
+          .filter((item) => item.key.includes('fault'))
+          .map((item) => item.index);
 
-        if (serialIndex === -1 || faultIndices.length === 0 || costIndex === -1) {
-          setUploadMessage('File must include Serial Number, at least one Fault column, and Cost column.');
+        const getColumnNumber = (label: string) => {
+          const match = label.match(/(\d+)/);
+          return match ? Number(match[1]) : null;
+        };
+
+        const getCostForFault = (row: any[], faultIndex: number, faultHeader: string) => {
+          const faultSuffix = getColumnNumber(faultHeader);
+          const matchingCostIndex = header.findIndex((key) => {
+            if (!key.includes('cost') || key.includes('fault')) return false;
+            const costSuffix = getColumnNumber(key);
+            return costSuffix !== null && costSuffix === faultSuffix;
+          });
+
+          if (matchingCostIndex !== -1) {
+            const costCell = String(row[matchingCostIndex] || '').replace(/[^0-9.\-]/g, '').trim();
+            return Number(costCell) || 0;
+          }
+
+          if (costIndex !== -1) {
+            const costCell = String(row[costIndex] || '').replace(/[^0-9.\-]/g, '').trim();
+            return Number(costCell) || 0;
+          }
+
+          return 0;
+        };
+
+        if (serialIndex === -1 || faultIndices.length === 0) {
+          setUploadMessage('File must include Serial Number and at least one Fault column.');
           return;
         }
 
@@ -238,21 +265,24 @@ export const VendorsPage: React.FC = () => {
           const serial = String(row[serialIndex] || '').trim();
           if (!serial) continue;
 
-          const faults = faultIndices
-            .map((index: number) => String(row[index] || '').trim())
-            .filter(Boolean);
-          const costCell = String(row[costIndex] || '').replace(/[^0-9.\-]/g, '').trim();
-          const cost = Number(costCell) || 0;
-          if (faults.length === 0 || cost <= 0) continue;
+          const faultEntries = faultIndices
+            .map((index) => ({
+              fault: String(row[index] || '').trim(),
+              cost: getCostForFault(row, index, header[index]),
+            }))
+            .filter((entry) => entry.fault);
+
+          const totalCost = faultEntries.reduce((sum, entry) => sum + entry.cost, 0);
+          if (faultEntries.length === 0 || totalCost <= 0) continue;
 
           const record: VendorRepairRecord = {
             id: `${selectedVendor.id}-${serial}-${i}-${Math.random().toString(36).slice(2, 8)}`,
             vendorId: selectedVendor.id,
             vendorName: selectedVendor.name,
             serialNumber: serial,
-            faults,
-            faultCosts: [cost],
-            totalCost: cost,
+            faults: faultEntries.map((entry) => entry.fault),
+            faultCosts: faultEntries.map((entry) => entry.cost),
+            totalCost,
             sourceFileName: file.name,
             uploadedAt: new Date().toISOString(),
             notes: `Imported for ${selectedVendor.name}`,

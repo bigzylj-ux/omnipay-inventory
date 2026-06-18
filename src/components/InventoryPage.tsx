@@ -3,8 +3,11 @@ import { getInventory, exportToExcel, updateInventoryRecord } from '../db';
 import { InventoryRecord, normalizeStatus, SYSTEM_STATUSES } from '../types';
 import { formatDate, getStatusColor } from '../utils';
 import { Search, Download, ChevronDown, ChevronUp, Edit2, Save, X } from 'lucide-react';
+import { useAuth } from '../contexts/AuthContext';
 
 export const InventoryPage: React.FC = () => {
+  const { user } = useAuth();
+  const isApprovedAdmin = user?.role === 'admin' && user?.approved === true;
   const [records, setRecords] = useState<InventoryRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -117,14 +120,14 @@ export const InventoryPage: React.FC = () => {
   };
 
   const handleEditClick = () => {
-    if (selectedRecord) {
+    if (selectedRecord && isApprovedAdmin) {
       setEditData(selectedRecord);
       setIsEditing(true);
     }
   };
 
   const handleSaveEdit = async () => {
-    if (!selectedRecord || !editData.id) return;
+    if (!selectedRecord || !editData.id || !isApprovedAdmin) return;
     setSaving(true);
     try {
       const normalizedStatus = normalizeStatus(editData.status || null);
@@ -344,7 +347,7 @@ export const InventoryPage: React.FC = () => {
                   <p className="text-gray-500 font-mono text-sm mt-1">{selectedRecord.deviceSerialNo}</p>
                 </div>
                 <div className="flex gap-2">
-                  {!isEditing && (
+                  {!isEditing && isApprovedAdmin && (
                     <button 
                       onClick={handleEditClick}
                       className="flex items-center gap-2 px-3 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 text-sm"

@@ -146,12 +146,12 @@ add_title_slide(prs, 'OmniPay', 'POS Inventory System\nComprehensive Management 
 
 # ==================== SLIDE 2: EXECUTIVE SUMMARY ====================
 add_content_slide(prs, 'Executive Summary', [
-    '• Browser-based POS terminal inventory management system',
-    '• Real-time dashboard with KPI tracking',
+    '• Shared POS terminal inventory workflow for admins and approved users',
+    '• Supabase-first storage with IndexedDB fallback for resilience',
+    '• Real-time dashboard with KPI tracking and charts',
     '• Daily automated reconciliation of inventory vs portal data',
-    '• Vendor management with repair cost tracking',
-    '• Local data persistence ensuring offline access',
-    '• Built for scalability with planned multi-user server backend',
+    '• Vendor management, repair cost tracking, and fault uploads',
+    '• Large-upload support for thousands of records through chunked processing',
 ])
 
 # ==================== SLIDE 3: KEY FEATURES ====================
@@ -168,15 +168,16 @@ add_content_slide(prs, 'Key Features', [
 # ==================== SLIDE 4: SYSTEM ARCHITECTURE ====================
 add_content_slide(prs, 'System Architecture', [
     'User Interface Layer',
-    '  → React 18.2 + TypeScript for type-safe UI components',
+    '  → React 18.2 + TypeScript for the inventory workflow UI',
     '',
-    'State & Routing Layer',
-    '  → React Router for seamless page navigation',
+    'Auth & Access Layer',
+    '  → Protected routes, admin approvals, and role-based access',
     '',
-    'Data Persistence Layer',
-    '  → IndexedDB (Browser Local Storage) for offline capability',
+    'Data Layer',
+    '  → Supabase for shared storage, with IndexedDB fallback when needed',
     '',
-    'Future: Server Backend for multi-user sync and cross-device access',
+    'Operations Layer',
+    '  → Excel import, reconciliation, tracking, and audit logging',
 ])
 
 # ==================== SLIDE 5: TECHNOLOGY STACK ====================
@@ -330,15 +331,15 @@ add_two_column_slide(prs, 'Troubleshooting Guide', [
 # ==================== SLIDE 14: DATA STORAGE & BACKUP ====================
 add_content_slide(prs, 'Data Storage & Backup Strategy', [
     'Data Location:',
-    '• Stored in browser IndexedDB (local machine only)',
-    '• No data transmitted to external servers',
-    '• Currently single-user per browser instance',
+    '• Stored through Supabase when available, with IndexedDB fallback',
+    '• Supports shared visibility for authorized users across browsers',
+    '• Keeps audit history and operational records available for review',
     '',
     'Backup Best Practices:',
-    '• Export inventory weekly to Excel',
-    '• Archive reconciliation logs monthly',
-    '• Date-stamp all exported files',
-    '• Keep offline copies for audit trail',
+    '• Export inventory and logs regularly to Excel',
+    '• Keep source import files for traceability',
+    '• Archive historical records for audit and reporting',
+    '• Validate shared access settings for team workflows',
 ])
 
 # ==================== SLIDE 15: DAILY CHECKLIST ====================
@@ -373,16 +374,15 @@ add_content_slide(prs, 'System Requirements', [
 # ==================== SLIDE 17: SECURITY & DATA RETENTION ====================
 add_content_slide(prs, 'Security & Data Retention', [
     'Data Retention:',
-    '• Master Inventory: Persists until cleared',
-    '• Portal Records: Latest import stored',
-    '• Reconciliation Logs: Last 500 kept, older auto-removed',
-    '• Vendor Data: Persists indefinitely',
+    '• Master Inventory: Persists in shared storage and fallback storage',
+    '• Portal Records: Latest import stored for current workflows',
+    '• Reconciliation Logs: Retained for review and audit tracking',
+    '• Vendor Data: Maintained for operational history',
     '',
     'Security Notes:',
-    '• Data is local - no cloud transmission',
-    '• Clearing browser cache deletes all data',
-    '• No user authentication in v1.0 (future enhancement)',
-    '• Regular backups recommended',
+    '• Role-based access controls protect key workflows',
+    '• Shared storage is managed through Supabase policies',
+    '• Regular exports and validation are recommended for compliance',
 ])
 
 # ==================== SLIDE 18: IMPLEMENTATION HIGHLIGHTS ====================
@@ -402,31 +402,30 @@ add_content_slide(prs, 'Implementation Highlights', [
 
 # ==================== SLIDE 19: FUTURE ROADMAP ====================
 add_content_slide(prs, 'Future Roadmap & Enhancements', [
-    'Phase 2 - Multi-User Support:',
-    '• Server-backed database (AWS/GCP/Azure)',
-    '• User authentication & role-based access',
-    '• Real-time data sync across devices',
+    'Phase 2 - Advanced Operations:',
+    '• Expanded analytics and forecasting reports',
+    '• More automation for exception review workflows',
+    '• Stronger reporting for regional and vendor performance',
     '',
-    'Phase 3 - Advanced Features:',
-    '• Mobile app for field tracking',
-    '• Automated email notifications',
-    '• Advanced analytics & reporting',
-    '• Integration with accounting systems',
+    'Phase 3 - Integrations:',
+    '• Mobile support for field tracking',
+    '• Automated notifications and reminders',
+    '• Integration with downstream finance and audit tools',
 ])
 
 # ==================== SLIDE 20: FAQ ====================
 add_content_slide(prs, 'Frequently Asked Questions', [
     'Q: Do I need internet always?',
-    'A: No, only for initial load. System works offline.',
+    'A: The app is best used with internet access for shared Supabase data, but fallback storage helps when needed.',
     '',
     'Q: Where is my data stored?',
-    'A: Browser IndexedDB on your local computer.',
+    'A: The app prefers Supabase and uses IndexedDB fallback when the shared storage layer is unavailable.',
     '',
     'Q: Can multiple people access it?',
-    'A: Not yet (v1.0 is single-user). Multi-user in future.',
+    'A: Yes, authorized users can access shared records when the correct permissions and Supabase setup are in place.',
     '',
     'Q: What if I clear browser cache?',
-    'A: Data is deleted. Always export backups first.',
+    'A: Browser-only copies may be lost, so regular exports and shared storage checks are recommended.',
 ])
 
 # ==================== SLIDE 21: GETTING STARTED ====================

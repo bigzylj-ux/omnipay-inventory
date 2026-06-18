@@ -97,16 +97,17 @@ export const AdminUsersPage: React.FC = () => {
       return;
     }
 
-    const isEmail = lookupQuery.includes('@');
+    const normalizedQuery = lookupQuery.trim();
+    const isEmail = normalizedQuery.includes('@');
     const request = supabase.from('profiles').select('id, email, role, approved, vendorAccess');
     const query = isEmail
-      ? request.eq('email', lookupQuery.toLowerCase())
-      : request.eq('id', lookupQuery.trim());
+      ? request.ilike('email', normalizedQuery)
+      : request.eq('id', normalizedQuery);
 
-    const { data, error } = await query.maybeSingle();
+    const { data, error } = await query.limit(1).maybeSingle();
 
     if (error) {
-      setError(error.message);
+      setError(error.message || 'Profile lookup returned an unexpected error.');
     } else if (!data) {
       setLookupMessage('No profile found for that user ID or email. You can ask the user to register again or create a profile directly in Supabase.');
     } else {

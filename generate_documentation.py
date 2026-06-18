@@ -116,15 +116,16 @@ add_colored_heading(doc, '1. Executive Summary', 1)
 
 doc.add_heading('Project Overview', 2)
 summary_text = """
-The OmniPay POS Inventory System is a comprehensive, browser-based application designed to manage and track Point-of-Sale (POS) terminal inventory across multiple locations and vendors. The system enables efficient daily reconciliation of inventory against portal records, vendor management, and repair tracking.
+The OmniPay POS Inventory System is a comprehensive inventory workflow for managing POS terminal records across multiple users, locations, and vendors. The platform now combines Supabase-backed shared storage with browser fallback support so teams can import data, reconcile records, review dashboards, and track terminal history without losing visibility across sessions.
 
 Key Capabilities:
-• Master inventory management with detailed tracking of terminal status
-• Daily automated reconciliation between inventory and portal data
-• Vendor management with repair cost tracking
-• Real-time search and filtering across all data
-• Local persistence ensuring data availability offline
-• Export capabilities for reporting and analysis
+• Shared inventory and portal data storage with Supabase-first reads and writes
+• Role-based access for admins, approved users, and restricted users
+• Large import support for thousands of rows through paged/chunked processing
+• Daily automated reconciliation between inventory and portal records
+• Vendor management with repair cost tracking and fault-based uploads
+• Real-time search, filtering, pagination, and export capabilities
+• Full audit trail through reconciliation and tracking logs
 """
 doc.add_paragraph(summary_text)
 
@@ -163,15 +164,17 @@ The OmniPay system follows a modern web architecture:
 
 User Interface Layer (React + TypeScript)
 ↓
-State Management & Routing (React Router)
+Routing, Auth, and Protected Views
 ↓
-Data Persistence (IndexedDB - Browser Local Storage)
+Data Layer (Supabase-first with IndexedDB fallback)
+↓
+Excel Import, Reconciliation, and Audit Logging
 
 This architecture ensures:
-• No reliance on external servers for data storage
-• Full data availability across browser sessions
-• Fast performance with instant data retrieval
-• Foundation for future server-backed sync
+• Shared access for authorized users across browsers and sessions
+• Reliable sync and fallback storage for operational continuity
+• Fast retrieval and filtering for large inventory datasets
+• Support for admin controls, approvals, and audit history
 """)
 
 doc.add_heading('Core Workflow', 2)
@@ -194,15 +197,17 @@ doc.add_page_break()
 # ==================== 3. TECHNOLOGY STACK ====================
 add_colored_heading(doc, '3. Technology Stack & Framework', 1)
 
-tech_table = create_table_with_style(doc, 7, 3, headers=['Layer', 'Technology', 'Purpose'])
 tech_data = [
     ['Frontend Framework', 'React 18.2', 'UI components and state management'],
     ['Language', 'TypeScript 5.3', 'Type-safe code development'],
     ['Build Tool', 'Vite 5.0', 'Fast bundling and hot reload'],
     ['Styling', 'Tailwind CSS 3.3', 'Responsive and modern UI design'],
-    ['Routing', 'React Router v6', 'Client-side page navigation'],
-    ['Data Persistence', 'IndexedDB', 'Local browser-based storage'],
+    ['Routing', 'React Router v6', 'Protected page navigation and routing'],
+    ['Authentication', 'Supabase Auth', 'Login, registration, approvals, and access control'],
+    ['Data Persistence', 'Supabase + IndexedDB', 'Shared storage with browser fallback support'],
+    ['Excel Processing', 'SheetJS / XLSX', 'Import, validation, export, and reconciliation workflows'],
 ]
+tech_table = create_table_with_style(doc, len(tech_data) + 1, 3, headers=['Layer', 'Technology', 'Purpose'])
 
 for i, row_data in enumerate(tech_data, 1):
     row_cells = tech_table.rows[i].cells
@@ -403,7 +408,7 @@ doc.add_heading('Standard Daily Checklist', 2)
 
 checklist = [
     'Download portal DB sheet from your portal system',
-    'Open OmniPay system (localhost:5174)',
+    'Open OmniPay system (localhost:5173)',
     'Navigate to Daily Import page',
     'Upload the portal DB file',
     'Go to Reconciliation page',
@@ -471,13 +476,13 @@ issues = [
         ]
     },
     {
-        'problem': 'Data disappears after browser reload',
-        'cause': 'Browser storage was cleared or cache issue',
+        'problem': 'Data does not appear for another user or browser',
+        'cause': 'Supabase access or permissions are not configured correctly',
         'solution': [
-            'Data is stored in browser IndexedDB - clearing cache may delete it',
-            'To prevent data loss, regularly export inventory to Excel backup',
-            'Use Chrome DevTools > Application > IndexedDB to verify data presence',
-            'Do not clear browser cache if you want to retain data',
+            'Verify that the Supabase URL and anon key are configured correctly in the environment',
+            'Confirm the user has the correct role and access to the relevant tables',
+            'Check that the tables exist and that RLS policies allow the expected reads/writes',
+            'If needed, export data and verify the fallback storage is not the only active source',
         ]
     },
     {
@@ -602,16 +607,16 @@ doc.add_paragraph("""
 
 doc.add_heading('Data Retention', 2)
 doc.add_paragraph("""
-• Master Inventory: Persists in IndexedDB until cleared
-• Portal Records: Latest import stored, previous imports cleared
-• Reconciliation Logs: Last 500 logs kept, older ones auto-removed
-• Vendor Data: Persists until manually deleted
-• Repair Records: Archived until user clears
+• Master Inventory: Persists in the shared storage layer and fallback storage when needed
+• Portal Records: Latest import stored and available across approved user sessions
+• Reconciliation Logs: Audit history is maintained for review and reporting
+• Vendor Data: Persists until manually updated or deleted
+• Repair Records: Available for historical and operational tracking
 
 Backup Strategy:
-• Export inventory weekly to Excel backup files
-• Archive reconciliation logs monthly
-• Date-stamp all exported files for audit trail
+• Export inventory and reconciliation results regularly to Excel
+• Archive logs and vendor history for audit purposes
+• Maintain copies of imported templates and source files used for reporting
 """)
 
 doc.add_heading('System Requirements', 2)
@@ -626,17 +631,17 @@ doc.add_paragraph("""
 doc.add_heading('FAQ', 2)
 faq_items = [
     ('Q: Do I need internet to use the system?',
-     'A: After loading the page, the system works offline. Data syncs when connection is restored.'),
+     'A: The application is best used with internet access for shared Supabase data, while the fallback layer helps when connectivity is limited.'),
     ('Q: Where is my data stored?',
-     'A: All data is stored locally in your browser\'s IndexedDB, not on a server.'),
+     'A: Data is stored through Supabase when available and falls back to IndexedDB for local browser access when needed.'),
     ('Q: Can multiple people use the same system?',
-     'A: Currently, the system is single-user per browser. A future version will support multi-user with server backend.'),
+     'A: Yes, authorized users can work from shared records when the correct Supabase roles and policies are set up.'),
     ('Q: How do I backup my data?',
-     'A: Regularly export inventory and reconciliation logs to Excel using the Export buttons.'),
+     'A: Regularly export inventory and reconciliation logs to Excel using the available Export actions.'),
     ('Q: What happens if I clear browser cache?',
-     'A: All data will be deleted. Always export backups first.'),
+     'A: Browser-only copies may be lost, so it is important to confirm the shared storage source and export data regularly.'),
     ('Q: Can I import from other systems?',
-     'A: Yes, format your data to match the template columns and import as Excel.'),
+     'A: Yes, format your data to match the template columns and import it as Excel.'),
 ]
 
 for q, a in faq_items:

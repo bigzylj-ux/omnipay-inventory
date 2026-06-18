@@ -1,4 +1,5 @@
 import { InventoryRecord, PortalRecord, ReconciliationLog, Vendor, VendorRepairRecord, normalizeStatus } from './types';
+import { hasSupabaseConfig, supabase } from './lib/supabaseClient';
 
 const DB_NAME = 'omnipay-inventory-db';
 const DB_VERSION = 1;
@@ -12,7 +13,209 @@ const STORES = {
   PORTAL: 'portal_records',
 };
 
-// Initialize IndexedDB
+const remoteEnabled = hasSupabaseConfig && Boolean(supabase);
+const SUPABASE_PAGE_SIZE = 1000;
+
+const fetchAllSupabaseRows = async <T>(
+  table: string,
+  orderColumn: string,
+  ascending = true
+): Promise<T[]> => {
+  if (!remoteEnabled || !supabase) {
+    return [];
+  }
+
+  const allRows: T[] = [];
+  let from = 0;
+
+  while (true) {
+    const { data, error } = await supabase
+      .from(table)
+      .select('*')
+      .order(orderColumn, { ascending })
+      .range(from, from + SUPABASE_PAGE_SIZE - 1);
+
+    if (error) {
+      throw error;
+    }
+
+    if (!data || data.length === 0) {
+      break;
+    }
+
+    allRows.push(...(data as T[]));
+
+    if (data.length < SUPABASE_PAGE_SIZE) {
+      break;
+    }
+
+    from += SUPABASE_PAGE_SIZE;
+  }
+
+  return allRows;
+};
+
+export const generateId = (): string => {
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+    return crypto.randomUUID();
+  }
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
+    const r = (Math.random() * 16) | 0;
+    const v = c === 'x' ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
+};
+
+const toInventoryRow = (record: InventoryRecord) => ({
+  id: record.id || generateId(),
+  sn: Number(record.sn || 0),
+  device_serial_no: record.deviceSerialNo || '',
+  terminal_id: record.terminalId ?? null,
+  transacting_tid: record.transactingTid ?? null,
+  merchant_name: record.merchantName ?? null,
+  phone_no: record.phoneNo ?? null,
+  date_mapped: record.dateMapped ?? null,
+  sim_serial: record.simSerial ?? null,
+  date_dispatched: record.dateDispatched ?? null,
+  custodian: record.custodian ?? null,
+  pickup_staff: record.pickupStaff ?? null,
+  redispatch_mfc: record.redispatchMfc ?? null,
+  location: record.location ?? null,
+  status: normalizeStatus(record.status),
+  fault: record.fault ?? null,
+  category: record.category ?? null,
+  manager: record.manager ?? null,
+  region: record.region ?? null,
+  terminal_id_assigned_at: record.terminalIdAssignedAt ?? null,
+  created_at: record.createdAt || new Date().toISOString(),
+  updated_at: record.updatedAt || new Date().toISOString(),
+  last_reconciled_at: record.lastReconciledAt ?? null,
+});
+
+const fromInventoryRow = (row: any): InventoryRecord => ({
+  id: row.id || generateId(),
+  sn: Number(row.sn || 0),
+  deviceSerialNo: row.device_serial_no || '',
+  terminalId: row.terminal_id ?? null,
+  transactingTid: row.transacting_tid ?? null,
+  merchantName: row.merchant_name ?? null,
+  phoneNo: row.phone_no ?? null,
+  dateMapped: row.date_mapped ?? null,
+  simSerial: row.sim_serial ?? null,
+  dateDispatched: row.date_dispatched ?? null,
+  custodian: row.custodian ?? null,
+  pickupStaff: row.pickup_staff ?? null,
+  redispatchMfc: row.redispatch_mfc ?? null,
+  location: row.location ?? null,
+  status: normalizeStatus(row.status),
+  fault: row.fault ?? null,
+  category: row.category ?? null,
+  manager: row.manager ?? null,
+  region: row.region ?? null,
+  terminalIdAssignedAt: row.terminal_id_assigned_at ?? null,
+  createdAt: row.created_at || new Date().toISOString(),
+  updatedAt: row.updated_at || new Date().toISOString(),
+  lastReconciledAt: row.last_reconciled_at ?? null,
+});
+
+const toPortalRow = (record: PortalRecord) => ({
+  id: record.id || generateId(),
+  batch_id: record.batchId,
+  serial_number: record.serialNumber,
+  terminal_id: record.terminalId ?? null,
+  business_name: record.businessName ?? null,
+  phone_number: record.phoneNumber ?? null,
+  updated_at: record.updatedAt ?? null,
+  transacting_tid: record.transactingTid ?? null,
+  imported_at: record.importedAt || new Date().toISOString(),
+  match_status: record.matchStatus,
+});
+
+const fromPortalRow = (row: any): PortalRecord => ({
+  id: row.id || generateId(),
+  batchId: row.batch_id,
+  serialNumber: row.serial_number,
+  terminalId: row.terminal_id ?? null,
+  businessName: row.business_name ?? null,
+  phoneNumber: row.phone_number ?? null,
+  updatedAt: row.updated_at ?? null,
+  transactingTid: row.transacting_tid ?? null,
+  importedAt: row.imported_at || new Date().toISOString(),
+  matchStatus: row.match_status || 'PENDING',
+});
+
+const toVendorRow = (vendor: Vendor) => ({
+  id: vendor.id || generateId(),
+  name: vendor.name,
+  email: vendor.email ?? null,
+  phone: vendor.phone ?? null,
+  address: vendor.address ?? null,
+  created_at: vendor.createdAt || new Date().toISOString(),
+  updated_at: vendor.updatedAt || new Date().toISOString(),
+});
+
+const fromVendorRow = (row: any): Vendor => ({
+  id: row.id || generateId(),
+  name: row.name,
+  email: row.email ?? null,
+  phone: row.phone ?? null,
+  address: row.address ?? null,
+  createdAt: row.created_at || new Date().toISOString(),
+  updatedAt: row.updated_at || new Date().toISOString(),
+});
+
+const toVendorRepairRow = (record: VendorRepairRecord) => ({
+  id: record.id || generateId(),
+  vendor_id: record.vendorId,
+  vendor_name: record.vendorName,
+  serial_number: record.serialNumber,
+  faults: record.faults,
+  fault_costs: record.faultCosts,
+  total_cost: record.totalCost,
+  source_file_name: record.sourceFileName ?? null,
+  uploaded_at: record.uploadedAt || new Date().toISOString(),
+  notes: record.notes ?? null,
+});
+
+const fromVendorRepairRow = (row: any): VendorRepairRecord => ({
+  id: row.id || generateId(),
+  vendorId: row.vendor_id,
+  vendorName: row.vendor_name,
+  serialNumber: row.serial_number,
+  faults: row.faults || [],
+  faultCosts: row.fault_costs || [],
+  totalCost: Number(row.total_cost || 0),
+  sourceFileName: row.source_file_name ?? null,
+  uploadedAt: row.uploaded_at || new Date().toISOString(),
+  notes: row.notes ?? null,
+});
+
+const toLogRow = (log: ReconciliationLog) => ({
+  id: log.id || generateId(),
+  batch_id: log.batchId,
+  serial_number: log.serialNumber,
+  action_type: log.actionType,
+  field_changed: log.fieldChanged,
+  old_value: log.oldValue ?? null,
+  new_value: log.newValue ?? null,
+  performed_by: log.performedBy,
+  performed_at: log.performedAt || new Date().toISOString(),
+  notes: log.notes,
+});
+
+const fromLogRow = (row: any): ReconciliationLog => ({
+  id: row.id || generateId(),
+  batchId: row.batch_id,
+  serialNumber: row.serial_number,
+  actionType: row.action_type,
+  fieldChanged: row.field_changed,
+  oldValue: row.old_value ?? null,
+  newValue: row.new_value ?? null,
+  performedBy: row.performed_by,
+  performedAt: row.performed_at || new Date().toISOString(),
+  notes: row.notes,
+});
+
 const initDB = async (): Promise<IDBDatabase> => {
   return new Promise((resolve, reject) => {
     const request = indexedDB.open(DB_NAME, DB_VERSION);
@@ -23,35 +226,27 @@ const initDB = async (): Promise<IDBDatabase> => {
     request.onupgradeneeded = (event) => {
       const db = (event.target as IDBOpenDBRequest).result;
 
-      // Inventory store
       if (!db.objectStoreNames.contains(STORES.INVENTORY)) {
         const invStore = db.createObjectStore(STORES.INVENTORY, { keyPath: 'id' });
         invStore.createIndex('deviceSerialNo', 'deviceSerialNo', { unique: true });
       }
-
-      // Logs store
       if (!db.objectStoreNames.contains(STORES.LOGS)) {
         const logStore = db.createObjectStore(STORES.LOGS, { keyPath: 'id' });
         logStore.createIndex('batchId', 'batchId');
         logStore.createIndex('serialNumber', 'serialNumber');
       }
-
-      // Batch metadata store
       if (!db.objectStoreNames.contains(STORES.BATCH_META)) {
         db.createObjectStore(STORES.BATCH_META, { keyPath: 'key' });
       }
-
       if (!db.objectStoreNames.contains(STORES.VENDORS)) {
         const vendorStore = db.createObjectStore(STORES.VENDORS, { keyPath: 'id' });
         vendorStore.createIndex('name', 'name', { unique: false });
       }
-
       if (!db.objectStoreNames.contains(STORES.VENDOR_REPAIRS)) {
         const repairStore = db.createObjectStore(STORES.VENDOR_REPAIRS, { keyPath: 'id' });
         repairStore.createIndex('vendorId', 'vendorId', { unique: false });
         repairStore.createIndex('serialNumber', 'serialNumber', { unique: false });
       }
-
       if (!db.objectStoreNames.contains(STORES.PORTAL)) {
         const portalStore = db.createObjectStore(STORES.PORTAL, { keyPath: 'id' });
         portalStore.createIndex('batchId', 'batchId', { unique: false });
@@ -61,7 +256,6 @@ const initDB = async (): Promise<IDBDatabase> => {
   });
 };
 
-// Utility to run a transaction and wait for completion
 const runTransaction = async <T>(
   mode: 'readonly' | 'readwrite',
   stores: string[],
@@ -91,7 +285,6 @@ const runTransaction = async <T>(
   });
 };
 
-// === BATCH COUNTER ===
 export const getBatchId = async (): Promise<string> => {
   return runTransaction('readwrite', [STORES.BATCH_META], async (tx) => {
     const store = tx.objectStore(STORES.BATCH_META);
@@ -106,14 +299,25 @@ export const getBatchId = async (): Promise<string> => {
 
         const updateRequest = store.put({ key: 'batch_counter', value: newCounter });
         updateRequest.onsuccess = () => resolve(batchId);
-        updateRequest.onerror = () => resolve(batchId); // Fallback, still return batch ID
+        updateRequest.onerror = () => resolve(batchId);
       };
     });
   });
 };
 
-// === INVENTORY MASTER ===
 export const getInventory = async (): Promise<InventoryRecord[]> => {
+  if (remoteEnabled && supabase) {
+    try {
+      const data = await fetchAllSupabaseRows<any>('inventory', 'sn', true);
+      return data.map(fromInventoryRow).map((record) => ({
+        ...record,
+        status: normalizeStatus(record.status),
+      }));
+    } catch (err) {
+      console.error('Failed to read inventory from Supabase:', err);
+    }
+  }
+
   return runTransaction('readonly', [STORES.INVENTORY], async (tx) => {
     const store = tx.objectStore(STORES.INVENTORY);
     const request = store.getAll();
@@ -121,11 +325,10 @@ export const getInventory = async (): Promise<InventoryRecord[]> => {
     return new Promise((resolve) => {
       request.onsuccess = () => {
         const result = request.result || [];
-        const normalized = result.map((record: InventoryRecord) => ({
+        resolve(result.map((record: InventoryRecord) => ({
           ...record,
           status: normalizeStatus(record.status),
-        }));
-        resolve(normalized);
+        })));
       };
       request.onerror = () => {
         console.error('Failed to read inventory:', request.error);
@@ -136,6 +339,25 @@ export const getInventory = async (): Promise<InventoryRecord[]> => {
 };
 
 export const getInventoryBySerial = async (serial: string): Promise<InventoryRecord | undefined> => {
+  if (remoteEnabled && supabase) {
+    try {
+      const { data, error } = await supabase
+        .from('inventory')
+        .select('*')
+        .eq('device_serial_no', serial)
+        .maybeSingle();
+
+      if (!error && data) {
+        return fromInventoryRow(data);
+      }
+      if (error) {
+        console.error('Failed to read inventory by serial from Supabase:', error);
+      }
+    } catch (err) {
+      console.error('Unexpected error reading inventory by serial from Supabase:', err);
+    }
+  }
+
   return runTransaction('readonly', [STORES.INVENTORY], async (tx) => {
     const store = tx.objectStore(STORES.INVENTORY);
     const index = store.index('deviceSerialNo');
@@ -160,8 +382,23 @@ const chunkArray = <T>(items: T[], size: number): T[][] => {
 };
 
 export const saveInventory = async (records: InventoryRecord[]): Promise<void> => {
-  const CHUNK_SIZE = 500;
+  if (remoteEnabled && supabase) {
+    try {
+      const payload = records.map(toInventoryRow);
+      const writeChunks = chunkArray(payload, 1000);
+      for (const chunk of writeChunks) {
+        const { error } = await supabase.from('inventory').upsert(chunk, { onConflict: 'device_serial_no' });
+        if (error) {
+          throw error;
+        }
+      }
+      return;
+    } catch (err) {
+      console.error('Unexpected error saving inventory to Supabase:', err);
+    }
+  }
 
+  const CHUNK_SIZE = 500;
   await runTransaction('readwrite', [STORES.INVENTORY], async (tx) => {
     const store = tx.objectStore(STORES.INVENTORY);
     await new Promise<void>((resolve, reject) => {
@@ -190,6 +427,15 @@ export const saveInventory = async (records: InventoryRecord[]): Promise<void> =
 };
 
 export const getVendors = async (): Promise<Vendor[]> => {
+  if (remoteEnabled && supabase) {
+    try {
+      const data = await fetchAllSupabaseRows<any>('vendors', 'created_at', false);
+      return data.map(fromVendorRow);
+    } catch (err) {
+      console.error('Failed to read vendors from Supabase:', err);
+    }
+  }
+
   return runTransaction('readonly', [STORES.VENDORS], async (tx) => {
     const store = tx.objectStore(STORES.VENDORS);
     const request = store.getAll();
@@ -205,6 +451,19 @@ export const getVendors = async (): Promise<Vendor[]> => {
 };
 
 export const saveVendors = async (vendors: Vendor[]): Promise<void> => {
+  if (remoteEnabled && supabase) {
+    try {
+      const payload = vendors.map(toVendorRow);
+      const { error } = await supabase.from('vendors').upsert(payload, { onConflict: 'id' });
+      if (!error) {
+        return;
+      }
+      console.error('Failed to save vendors to Supabase:', error);
+    } catch (err) {
+      console.error('Unexpected error saving vendors to Supabase:', err);
+    }
+  }
+
   return runTransaction('readwrite', [STORES.VENDORS], async (tx) => {
     const store = tx.objectStore(STORES.VENDORS);
     await new Promise<void>((resolve) => {
@@ -227,6 +486,19 @@ export const saveVendors = async (vendors: Vendor[]): Promise<void> => {
 };
 
 export const updateVendor = async (vendor: Vendor): Promise<void> => {
+  if (remoteEnabled && supabase) {
+    try {
+      const payload = toVendorRow(vendor);
+      const { error } = await supabase.from('vendors').upsert(payload, { onConflict: 'id' });
+      if (!error) {
+        return;
+      }
+      console.error('Failed to update vendor in Supabase:', error);
+    } catch (err) {
+      console.error('Unexpected error updating vendor in Supabase:', err);
+    }
+  }
+
   return runTransaction('readwrite', [STORES.VENDORS], async (tx) => {
     const store = tx.objectStore(STORES.VENDORS);
     return new Promise((resolve) => {
@@ -241,6 +513,18 @@ export const updateVendor = async (vendor: Vendor): Promise<void> => {
 };
 
 export const deleteVendor = async (id: string): Promise<void> => {
+  if (remoteEnabled && supabase) {
+    try {
+      const { error } = await supabase.from('vendors').delete().eq('id', id);
+      if (!error) {
+        return;
+      }
+      console.error('Failed to delete vendor in Supabase:', error);
+    } catch (err) {
+      console.error('Unexpected error deleting vendor in Supabase:', err);
+    }
+  }
+
   return runTransaction('readwrite', [STORES.VENDORS], async (tx) => {
     const store = tx.objectStore(STORES.VENDORS);
     return new Promise((resolve) => {
@@ -255,6 +539,15 @@ export const deleteVendor = async (id: string): Promise<void> => {
 };
 
 export const getVendorRepairs = async (): Promise<VendorRepairRecord[]> => {
+  if (remoteEnabled && supabase) {
+    try {
+      const data = await fetchAllSupabaseRows<any>('vendor_repairs', 'uploaded_at', false);
+      return data.map(fromVendorRepairRow);
+    } catch (err) {
+      console.error('Failed to read vendor repairs from Supabase:', err);
+    }
+  }
+
   return runTransaction('readonly', [STORES.VENDOR_REPAIRS], async (tx) => {
     const store = tx.objectStore(STORES.VENDOR_REPAIRS);
     const request = store.getAll();
@@ -270,6 +563,19 @@ export const getVendorRepairs = async (): Promise<VendorRepairRecord[]> => {
 };
 
 export const addVendorRepairRecords = async (records: VendorRepairRecord[]): Promise<void> => {
+  if (remoteEnabled && supabase) {
+    try {
+      const payload = records.map(toVendorRepairRow);
+      const { error } = await supabase.from('vendor_repairs').upsert(payload, { onConflict: 'id' });
+      if (!error) {
+        return;
+      }
+      console.error('Failed to add vendor repair records to Supabase:', error);
+    } catch (err) {
+      console.error('Unexpected error adding vendor repairs to Supabase:', err);
+    }
+  }
+
   return runTransaction('readwrite', [STORES.VENDOR_REPAIRS], async (tx) => {
     const store = tx.objectStore(STORES.VENDOR_REPAIRS);
     for (const record of records) {
@@ -286,6 +592,18 @@ export const addVendorRepairRecords = async (records: VendorRepairRecord[]): Pro
 };
 
 export const clearVendorRepairs = async (): Promise<void> => {
+  if (remoteEnabled && supabase) {
+    try {
+      const { error } = await supabase.from('vendor_repairs').delete().neq('id', '');
+      if (!error) {
+        return;
+      }
+      console.error('Failed to clear vendor repairs in Supabase:', error);
+    } catch (err) {
+      console.error('Unexpected error clearing vendor repairs in Supabase:', err);
+    }
+  }
+
   return runTransaction('readwrite', [STORES.VENDOR_REPAIRS], async (tx) => {
     const store = tx.objectStore(STORES.VENDOR_REPAIRS);
     return new Promise((resolve) => {
@@ -300,6 +618,19 @@ export const clearVendorRepairs = async (): Promise<void> => {
 };
 
 export const updateInventoryRecord = async (record: InventoryRecord): Promise<void> => {
+  if (remoteEnabled && supabase) {
+    try {
+      const payload = toInventoryRow(record);
+      const { error } = await supabase.from('inventory').upsert(payload, { onConflict: 'device_serial_no' });
+      if (!error) {
+        return;
+      }
+      console.error('Failed to update inventory record in Supabase:', error);
+    } catch (err) {
+      console.error('Unexpected error updating inventory record in Supabase:', err);
+    }
+  }
+
   return runTransaction('readwrite', [STORES.INVENTORY], async (tx) => {
     const store = tx.objectStore(STORES.INVENTORY);
     const updated = { ...record, updatedAt: new Date().toISOString() };
@@ -316,9 +647,21 @@ export const updateInventoryRecord = async (record: InventoryRecord): Promise<vo
 };
 
 export const addInventoryRecord = async (record: InventoryRecord): Promise<void> => {
+  if (remoteEnabled && supabase) {
+    try {
+      const payload = toInventoryRow(record);
+      const { error } = await supabase.from('inventory').upsert(payload, { onConflict: 'device_serial_no' });
+      if (!error) {
+        return;
+      }
+      console.error('Failed to add inventory record in Supabase:', error);
+    } catch (err) {
+      console.error('Unexpected error adding inventory record in Supabase:', err);
+    }
+  }
+
   return runTransaction('readwrite', [STORES.INVENTORY], async (tx) => {
     const store = tx.objectStore(STORES.INVENTORY);
-
     return new Promise((resolve) => {
       const request = store.add(record);
       request.onsuccess = () => resolve();
@@ -330,9 +673,16 @@ export const addInventoryRecord = async (record: InventoryRecord): Promise<void>
   });
 };
 
-// === PORTAL RECORDS (PERSISTENT LOCAL STORAGE) ===
-// Stored in IndexedDB so daily imports remain available after reload.
 export const getPortalRecords = async (): Promise<PortalRecord[]> => {
+  if (remoteEnabled && supabase) {
+    try {
+      const data = await fetchAllSupabaseRows<any>('portal_records', 'imported_at', false);
+      return data.map(fromPortalRow);
+    } catch (err) {
+      console.error('Failed to read portal records from Supabase:', err);
+    }
+  }
+
   return runTransaction('readonly', [STORES.PORTAL], async (tx) => {
     const store = tx.objectStore(STORES.PORTAL);
     const request = store.getAll();
@@ -348,8 +698,23 @@ export const getPortalRecords = async (): Promise<PortalRecord[]> => {
 };
 
 export const savePortalRecords = async (records: PortalRecord[]): Promise<void> => {
-  const CHUNK_SIZE = 500;
+  if (remoteEnabled && supabase) {
+    try {
+      const payload = records.map(toPortalRow);
+      const writeChunks = chunkArray(payload, 1000);
+      for (const chunk of writeChunks) {
+        const { error } = await supabase.from('portal_records').upsert(chunk, { onConflict: 'id' });
+        if (error) {
+          throw error;
+        }
+      }
+      return;
+    } catch (err) {
+      console.error('Unexpected error saving portal records to Supabase:', err);
+    }
+  }
 
+  const CHUNK_SIZE = 500;
   await runTransaction('readwrite', [STORES.PORTAL], async (tx) => {
     const store = tx.objectStore(STORES.PORTAL);
     await new Promise<void>((resolve, reject) => {
@@ -378,6 +743,18 @@ export const savePortalRecords = async (records: PortalRecord[]): Promise<void> 
 };
 
 export const clearPortalRecords = async (): Promise<void> => {
+  if (remoteEnabled && supabase) {
+    try {
+      const { error } = await supabase.from('portal_records').delete().neq('id', '');
+      if (!error) {
+        return;
+      }
+      console.error('Failed to clear portal records in Supabase:', error);
+    } catch (err) {
+      console.error('Unexpected error clearing portal records in Supabase:', err);
+    }
+  }
+
   return runTransaction('readwrite', [STORES.PORTAL], async (tx) => {
     const store = tx.objectStore(STORES.PORTAL);
     return new Promise((resolve) => {
@@ -391,8 +768,16 @@ export const clearPortalRecords = async (): Promise<void> => {
   });
 };
 
-// === RECONCILIATION LOGS ===
 export const getLogs = async (): Promise<ReconciliationLog[]> => {
+  if (remoteEnabled && supabase) {
+    try {
+      const data = await fetchAllSupabaseRows<any>('reconciliation_logs', 'performed_at', false);
+      return data.map(fromLogRow);
+    } catch (err) {
+      console.error('Failed to read logs from Supabase:', err);
+    }
+  }
+
   return runTransaction('readonly', [STORES.LOGS], async (tx) => {
     const store = tx.objectStore(STORES.LOGS);
     const request = store.getAll();
@@ -408,9 +793,24 @@ export const getLogs = async (): Promise<ReconciliationLog[]> => {
 };
 
 export const addLogs = async (logs: ReconciliationLog[]): Promise<void> => {
+  if (remoteEnabled && supabase) {
+    try {
+      const payload = logs.map(toLogRow);
+      const writeChunks = chunkArray(payload, 1000);
+      for (const chunk of writeChunks) {
+        const { error } = await supabase.from('reconciliation_logs').upsert(chunk, { onConflict: 'id' });
+        if (error) {
+          throw error;
+        }
+      }
+      return;
+    } catch (err) {
+      console.error('Unexpected error adding logs to Supabase:', err);
+    }
+  }
+
   return runTransaction('readwrite', [STORES.LOGS], async (tx) => {
     const store = tx.objectStore(STORES.LOGS);
-
     for (const log of logs) {
       await new Promise<void>((resolve) => {
         const request = store.add(log);
@@ -422,7 +822,6 @@ export const addLogs = async (logs: ReconciliationLog[]): Promise<void> => {
       });
     }
 
-    // Keep only last 500 logs (cleanup)
     const allRequest = store.getAll();
     allRequest.onsuccess = () => {
       const all = allRequest.result;
@@ -439,9 +838,20 @@ export const addLogs = async (logs: ReconciliationLog[]): Promise<void> => {
 };
 
 export const clearLogs = async (): Promise<void> => {
+  if (remoteEnabled && supabase) {
+    try {
+      const { error } = await supabase.from('reconciliation_logs').delete().neq('id', '');
+      if (!error) {
+        return;
+      }
+      console.error('Failed to clear logs in Supabase:', error);
+    } catch (err) {
+      console.error('Unexpected error clearing logs in Supabase:', err);
+    }
+  }
+
   return runTransaction('readwrite', [STORES.LOGS], async (tx) => {
     const store = tx.objectStore(STORES.LOGS);
-
     return new Promise((resolve) => {
       const request = store.clear();
       request.onsuccess = () => resolve();
@@ -450,18 +860,6 @@ export const clearLogs = async (): Promise<void> => {
         resolve();
       };
     });
-  });
-};
-
-// === UTILITIES ===
-export const generateId = (): string => {
-  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
-    return crypto.randomUUID();
-  }
-  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
-    const r = (Math.random() * 16) | 0;
-    const v = c === 'x' ? r : (r & 0x3) | 0x8;
-    return v.toString(16);
   });
 };
 
@@ -479,7 +877,6 @@ export const clearAllData = async (): Promise<void> => {
   });
 };
 
-// === EXPORT TO EXCEL ===
 export const exportToExcel = (data: any[], filename: string): void => {
   import('xlsx').then((XLSX) => {
     const ws = XLSX.utils.json_to_sheet(data);
@@ -489,12 +886,11 @@ export const exportToExcel = (data: any[], filename: string): void => {
   });
 };
 
-// === STORAGE INFO ===
 export const getStorageInfo = async (): Promise<{ message: string }> => {
   const inv = await getInventory();
   const logs = await getLogs();
   const portal = await getPortalRecords();
   return {
-    message: `IndexedDB: ${inv.length} inventory records, ${logs.length} logs, ${portal.length} portal records.`,
+    message: `${remoteEnabled ? 'Supabase' : 'IndexedDB'}: ${inv.length} inventory records, ${logs.length} logs, ${portal.length} portal records.`,
   };
 };
