@@ -2,6 +2,8 @@ import React from 'react';
 import { Link, useLocation, Outlet } from 'react-router-dom';
 import { LayoutDashboard, Upload, Database, Activity, FileSpreadsheet, MapPin, Users, ShieldCheck, LogOut } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
+import { AppLogo } from './AppLogo';
+import { ThemeSwitcher } from './ThemeSwitcher';
 
 const navItems = [
   { path: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, roles: ['admin', 'user'] },
@@ -34,10 +36,7 @@ export const Layout: React.FC = () => {
     <div className="min-h-screen bg-gray-50 flex">
       <aside className="w-64 bg-slate-900 text-white flex flex-col fixed inset-y-0 left-0 overflow-auto">
         <div className="p-6 border-b border-slate-700">
-          <h1 className="text-xl font-bold flex items-center gap-2">
-            <FileSpreadsheet className="w-6 h-6 text-emerald-400" />
-            OmniPay
-          </h1>
+          <AppLogo compact />
           <p className="text-xs text-slate-400 mt-1">POS Inventory System</p>
           <p className="text-xs text-slate-400 mt-1">© OmniPay</p>
         </div>
@@ -63,11 +62,12 @@ export const Layout: React.FC = () => {
           })}
         </nav>
 
-        <div className="p-4 border-t border-slate-700">
+        <div className="p-4 border-t border-slate-700 space-y-3">
           <div className="text-xs text-slate-400">
             <p>{user ? `${user.role.toUpperCase()} access` : 'Not signed in'}</p>
             <p className="mt-2">v1.0.0</p>
           </div>
+          <ThemeSwitcher />
         </div>
       </aside>
 
@@ -96,15 +96,15 @@ export const Layout: React.FC = () => {
           </div>
         )}
 
-        <header className="fixed top-0 left-64 right-0 z-50 bg-slate-800 text-slate-100 border-b border-slate-700 shadow-sm">
-          <div className="px-8 h-20 flex items-center justify-between">
+        <header className="bg-slate-800 text-slate-100 border-b border-slate-700 shadow-sm">
+          <div className="px-4 sm:px-8 py-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <h2 className="text-2xl md:text-3xl font-semibold">
+              <h2 className="text-xl sm:text-2xl md:text-3xl font-semibold">
                 {filteredNavItems.find((n) => n.path === location.pathname)?.label || 'OmniPay Inventory'}
               </h2>
               <p className="text-sm text-slate-300 mt-1 hidden md:block">Your inventory overview and analytics dashboard</p>
             </div>
-            <div className="flex items-center gap-4">
+            <div className="flex flex-wrap items-center gap-4">
               <div className="text-sm text-slate-300 text-right">
                 <div>{user?.email}</div>
                 <div className="text-xs text-slate-400">{user?.approved ? 'Approved user' : 'Pending approval'}</div>
@@ -119,7 +119,7 @@ export const Layout: React.FC = () => {
             </div>
           </div>
         </header>
-        <div className="p-8 pt-20 min-h-[calc(100vh-5rem)] bg-gray-50">
+        <div className="p-4 sm:p-8 min-h-[calc(100vh-5rem)] bg-gray-50">
           <Outlet />
 
           <footer className="mt-8 bg-slate-100 text-slate-600 p-4 rounded-md text-sm">

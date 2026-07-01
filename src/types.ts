@@ -72,7 +72,7 @@ export interface ReconciliationLog {
   id: string;
   batchId: string;
   serialNumber: string;
-  actionType: 'UPDATE_MERCHANT' | 'UPDATE_TID' | 'STATUS_CHANGE' | 'NEW_DEPLOYMENT' | 'FLAG_EXCEPTION' | 'NO_CHANGE';
+  actionType: 'INITIAL_REGISTRATION' | 'STOCK_CREATION' | 'CUSTODIAN_ASSIGNMENT' | 'CUSTODIAN_TRANSFER' | 'DISPATCH' | 'DEPLOYMENT' | 'MERCHANT_ASSIGNMENT' | 'MERCHANT_NAME_CHANGE' | 'MERCHANT_PHONE_CHANGE' | 'REPAIR' | 'FAULT_REPORTED' | 'RETURN' | 'RETRIEVAL' | 'STATUS_CHANGE' | 'CATEGORY_CHANGE' | 'INVENTORY_EDIT' | 'SIM_REPLACEMENT' | 'UPDATE_MERCHANT' | 'UPDATE_TID' | 'NEW_DEPLOYMENT' | 'FLAG_EXCEPTION' | 'NO_CHANGE';
   fieldChanged: string;
   oldValue: string | null;
   newValue: string | null;

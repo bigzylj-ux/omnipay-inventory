@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Eye, EyeOff } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
+import { LoadingState } from './LoadingState';
 
 export const RegisterPage: React.FC = () => {
   const { signUp, loading, error, user } = useAuth();
@@ -53,6 +54,10 @@ export const RegisterPage: React.FC = () => {
   if (user && user.approved) {
     navigate('/dashboard');
     return null;
+  }
+
+  if (loading) {
+    return <div className="min-h-screen bg-slate-950 px-4 py-8"><LoadingState label="Creating your account" subLabel="Setting up your profile and access permissions." /></div>;
   }
 
   return (

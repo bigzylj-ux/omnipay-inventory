@@ -15,9 +15,11 @@ import { PendingApprovalPage } from './components/PendingApprovalPage';
 import { UnauthorizedPage } from './components/UnauthorizedPage';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { AdminUsersPage } from './components/AdminUsersPage';
+import { ThemeProvider } from './contexts/ThemeContext';
 
 function App() {
   return (
+    <ThemeProvider>
     <BrowserRouter>
       <Routes>
         <Route path="/" element={<LandingPage />} />
@@ -52,6 +54,7 @@ function App() {
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>
+    </ThemeProvider>
   );
 }
 

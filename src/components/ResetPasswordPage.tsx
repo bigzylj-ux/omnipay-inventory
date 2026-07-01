@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { LoadingState } from './LoadingState';
 
 export const ResetPasswordPage: React.FC = () => {
   const { resetPassword, loading, error } = useAuth();
@@ -16,6 +17,10 @@ export const ResetPasswordPage: React.FC = () => {
       setSuccessMessage('If that email exists, a password reset link has been sent. Please check your inbox.');
     }
   };
+
+  if (loading) {
+    return <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 px-4 py-8"><LoadingState label="Sending reset link" subLabel="Checking your email details and access settings." /></div>;
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 text-white flex items-center justify-center px-4 py-8">

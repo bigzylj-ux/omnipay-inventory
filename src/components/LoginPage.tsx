@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Eye, EyeOff } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
+import { LoadingState } from './LoadingState';
 
 export const LoginPage: React.FC = () => {
   const { signIn, loading, error, user } = useAuth();
@@ -21,6 +22,10 @@ export const LoginPage: React.FC = () => {
   if (user) {
     navigate('/dashboard');
     return null;
+  }
+
+  if (loading) {
+    return <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 px-4 py-8"><LoadingState label="Signing you in" subLabel="Preparing your workspace and access rights." /></div>;
   }
 
   return (

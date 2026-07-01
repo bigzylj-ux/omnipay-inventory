@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { getInventory, getLogs } from '../db';
+import { getInventory, getLastReconciliationInfo, getLogs } from '../db';
 import { InventoryRecord, ReconciliationLog, normalizeStatus } from '../types';
 import { calculateKPIs } from '../utils';
 import { KPIcards } from './KPIcards';
@@ -9,6 +9,7 @@ import { LoadingState } from './LoadingState';
 export const Dashboard: React.FC = () => {
   const [records, setRecords] = useState<InventoryRecord[]>([]);
   const [logs, setLogs] = useState<ReconciliationLog[]>([]);
+  const [lastReconciliation, setLastReconciliation] = useState<{ timestamp: string | null; date: string | null }>({ timestamp: null, date: null });
   const [loading, setLoading] = useState(true);
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
   const [selectedYear, setSelectedYear] = useState<string>('All');
@@ -24,8 +25,10 @@ export const Dashboard: React.FC = () => {
         status: normalizeStatus(record.status),
       }));
       const logData = await getLogs();
+      const reconciliationMeta = await getLastReconciliationInfo();
       setRecords(normalized);
       setLogs(logData.slice(-50).reverse());
+      setLastReconciliation(reconciliationMeta);
       setLoading(false);
     };
     loadData();
@@ -114,10 +117,6 @@ export const Dashboard: React.FC = () => {
     return true;
   });
 
-  const totalPosAssigned = filteredRecords.filter(r => r.dateDispatched).length;
-  const totalDeployed = filteredRecords.filter(r => r.dateDispatched && normalizeStatus(r.status) === 'Deployed').length;
-  const totalYetToDeploy = filteredRecords.filter(r => r.dateDispatched && normalizeStatus(r.status) === 'Yet To Deploy').length;
-
   const recentlyDeployed = [...records]
     .filter((record) => normalizeStatus(record.status) === 'Deployed')
     .sort((a, b) => {
@@ -175,15 +174,15 @@ export const Dashboard: React.FC = () => {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div className="rounded-3xl border border-slate-200 bg-slate-50 p-5 shadow-sm">
           <p className="text-sm text-slate-500">POS Assigned</p>
-          <p className="mt-3 text-3xl font-semibold text-slate-900">{totalPosAssigned}</p>
+          <p className="mt-3 text-3xl font-semibold text-slate-900">{filteredRecords.filter(r => r.dateDispatched).length}</p>
         </div>
         <div className="rounded-3xl border border-slate-200 bg-emerald-50 p-5 shadow-sm">
           <p className="text-sm text-emerald-700">Deployed</p>
-          <p className="mt-3 text-3xl font-semibold text-emerald-900">{totalDeployed}</p>
+          <p className="mt-3 text-3xl font-semibold text-emerald-900">{filteredRecords.filter(r => r.dateDispatched && normalizeStatus(r.status) === 'Deployed').length}</p>
         </div>
         <div className="rounded-3xl border border-slate-200 bg-yellow-50 p-5 shadow-sm">
           <p className="text-sm text-amber-700">Yet To Deploy</p>
-          <p className="mt-3 text-3xl font-semibold text-amber-900">{totalYetToDeploy}</p>
+          <p className="mt-3 text-3xl font-semibold text-amber-900">{filteredRecords.filter(r => r.dateDispatched && normalizeStatus(r.status) === 'Yet To Deploy').length}</p>
         </div>
       </div>
 
@@ -213,7 +212,11 @@ export const Dashboard: React.FC = () => {
           <div>
             <p className="text-sm text-gray-500">Last Reconciliation</p>
             <p className="text-xl font-bold text-blue-600">
-              {logs.length > 0 ? new Date(logs[0].performedAt).toLocaleDateString('en-NG') : 'Never'}
+              {lastReconciliation.timestamp
+                ? new Date(lastReconciliation.timestamp).toLocaleDateString('en-NG')
+                : logs.length > 0
+                  ? new Date(logs[0].performedAt).toLocaleDateString('en-NG')
+                  : 'Never'}
             </p>
           </div>
         </div>

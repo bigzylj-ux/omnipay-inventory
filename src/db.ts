@@ -305,6 +305,73 @@ export const getBatchId = async (): Promise<string> => {
   });
 };
 
+export const getLastReconciliationInfo = async (): Promise<{ timestamp: string | null; date: string | null }> => {
+  if (typeof window !== 'undefined') {
+    try {
+      const raw = window.localStorage.getItem('last_reconciliation');
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (parsed?.timestamp) {
+          return {
+            timestamp: parsed.timestamp,
+            date: parsed.date || parsed.timestamp.split('T')[0],
+          };
+        }
+      }
+    } catch (err) {
+      console.warn('Failed to read persisted reconciliation metadata from localStorage:', err);
+    }
+  }
+
+  return runTransaction('readonly', [STORES.BATCH_META], async (tx) => {
+    const store = tx.objectStore(STORES.BATCH_META);
+    const request = store.get('last_reconciliation');
+
+    return new Promise((resolve) => {
+      request.onsuccess = () => {
+        const data = request.result;
+        if (!data?.value) {
+          resolve({ timestamp: null, date: null });
+          return;
+        }
+
+        resolve({
+          timestamp: data.value.timestamp || null,
+          date: data.value.date || null,
+        });
+      };
+      request.onerror = () => {
+        console.error('Failed to read last reconciliation metadata:', request.error);
+        resolve({ timestamp: null, date: null });
+      };
+    });
+  });
+};
+
+export const setLastReconciliationInfo = async (timestamp: string): Promise<void> => {
+  const normalizedTimestamp = new Date(timestamp).toISOString();
+  const normalizedDate = normalizedTimestamp.split('T')[0];
+
+  if (typeof window !== 'undefined') {
+    window.localStorage.setItem(
+      'last_reconciliation',
+      JSON.stringify({ timestamp: normalizedTimestamp, date: normalizedDate })
+    );
+  }
+
+  return runTransaction('readwrite', [STORES.BATCH_META], async (tx) => {
+    const store = tx.objectStore(STORES.BATCH_META);
+    return new Promise((resolve) => {
+      const request = store.put({ key: 'last_reconciliation', value: { timestamp: normalizedTimestamp, date: normalizedDate } });
+      request.onsuccess = () => resolve();
+      request.onerror = () => {
+        console.error('Failed to save last reconciliation metadata:', request.error);
+        resolve();
+      };
+    });
+  });
+};
+
 export const getInventory = async (): Promise<InventoryRecord[]> => {
   if (remoteEnabled && supabase) {
     try {

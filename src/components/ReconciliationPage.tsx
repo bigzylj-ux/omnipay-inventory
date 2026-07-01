@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from 'react';
-import { getInventory, getPortalRecords, getLogs, clearPortalRecords, exportToExcel } from '../db';
+import { getInventory, getPortalRecords, getLogs, clearPortalRecords, exportToExcel, setLastReconciliationInfo } from '../db';
 import { InventoryRecord, PortalRecord, ReconciliationLog, ReconciliationResult } from '../types';
 import { reconcileBatch } from '../reconciler';
 import { Play, AlertTriangle, CheckCircle, RotateCcw, FileText, Loader2 } from 'lucide-react';
+import { LoadingState } from './LoadingState';
 
 export const ReconciliationPage: React.FC = () => {
   const [running, setRunning] = useState(false);
@@ -45,6 +46,7 @@ export const ReconciliationPage: React.FC = () => {
         const reconciliationResult = await reconcileBatch(portalRecords, (p) => setProgress(p));
         setResult(reconciliationResult);
         setLogs(reconciliationResult.logs);
+        await setLastReconciliationInfo(new Date().toISOString());
         setProgress(100);
 
         if (reconciliationResult.exceptions > 0) {
@@ -84,6 +86,10 @@ export const ReconciliationPage: React.FC = () => {
 
     exportToExcel(exportData, `Reconciliation_Log_${new Date().toISOString().split('T')[0]}.xlsx`);
   };
+
+  if (running && !result && progress === 0) {
+    return <LoadingState label="Running reconciliation" subLabel="Comparing portal records against the master inventory." />;
+  }
 
   return (
     <div className="space-y-6">
