@@ -24,7 +24,7 @@ export const PendingApprovalPage: React.FC = () => {
           </Link>
           <button
             type="button"
-            onClick={signOut}
+            onClick={() => void signOut()}
             className="inline-flex rounded-2xl bg-rose-500 px-6 py-3 text-sm font-semibold text-slate-950 hover:bg-rose-400"
           >
             Sign out

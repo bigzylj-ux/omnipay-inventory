@@ -5,6 +5,7 @@ import { calculateKPIs } from '../utils';
 import { KPIcards } from './KPIcards';
 import { StatusChart, LocationChart, CategoryChart, RegionChart } from './Charts';
 import { Activity, AlertCircle, CheckCircle } from 'lucide-react';
+import { LoadingState } from './LoadingState';
 export const Dashboard: React.FC = () => {
   const [records, setRecords] = useState<InventoryRecord[]>([]);
   const [logs, setLogs] = useState<ReconciliationLog[]>([]);
@@ -117,8 +118,17 @@ export const Dashboard: React.FC = () => {
   const totalDeployed = filteredRecords.filter(r => r.dateDispatched && normalizeStatus(r.status) === 'Deployed').length;
   const totalYetToDeploy = filteredRecords.filter(r => r.dateDispatched && normalizeStatus(r.status) === 'Yet To Deploy').length;
 
+  const recentlyDeployed = [...records]
+    .filter((record) => normalizeStatus(record.status) === 'Deployed')
+    .sort((a, b) => {
+      const aDate = new Date(a.dateDispatched || a.terminalIdAssignedAt || a.updatedAt || 0).getTime();
+      const bDate = new Date(b.dateDispatched || b.terminalIdAssignedAt || b.updatedAt || 0).getTime();
+      return bDate - aDate;
+    })
+    .slice(0, 6);
+
   if (loading) {
-    return <div className="flex items-center justify-center h-64">Loading...</div>;
+    return <LoadingState label="Loading dashboard" subLabel="Crunching the latest inventory and deployment insights." />;
   }
 
   return (
@@ -217,44 +227,37 @@ export const Dashboard: React.FC = () => {
       </div>
 
       <div className="bg-white rounded-xl shadow-sm border p-5">
-        <h3 className="text-lg font-semibold mb-4">Recent Reconciliation Activity</h3>
+        <div className="mb-4 flex items-center justify-between">
+          <div>
+            <h3 className="text-lg font-semibold">Recently Deployed Terminals</h3>
+            <p className="text-sm text-gray-500">Latest deployments with current merchant details.</p>
+          </div>
+        </div>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead className="bg-gray-50">
               <tr>
-                <th className="text-left px-4 py-3 font-medium text-gray-600">Time</th>
-                <th className="text-left px-4 py-3 font-medium text-gray-600">Serial</th>
-                <th className="text-left px-4 py-3 font-medium text-gray-600">Action</th>
-                <th className="text-left px-4 py-3 font-medium text-gray-600">Field</th>
-                <th className="text-left px-4 py-3 font-medium text-gray-600">Details</th>
+                <th className="text-left px-4 py-3 font-medium text-gray-600">Serial Number</th>
+                <th className="text-left px-4 py-3 font-medium text-gray-600">Terminal ID</th>
+                <th className="text-left px-4 py-3 font-medium text-gray-600">TID</th>
+                <th className="text-left px-4 py-3 font-medium text-gray-600">Merchant Name</th>
+                <th className="text-left px-4 py-3 font-medium text-gray-600">Merchant Phone</th>
               </tr>
             </thead>
             <tbody className="divide-y">
-              {logs.slice(0, 10).map(log => (
-                <tr key={log.id} className="hover:bg-gray-50">
-                  <td className="px-4 py-3 text-gray-500">
-                    {new Date(log.performedAt).toLocaleString('en-NG')}
-                  </td>
-                  <td className="px-4 py-3 font-mono text-xs">{log.serialNumber}</td>
-                  <td className="px-4 py-3">
-                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                      log.actionType === 'FLAG_EXCEPTION' 
-                        ? 'bg-red-100 text-red-700' 
-                        : log.actionType === 'NEW_DEPLOYMENT'
-                        ? 'bg-emerald-100 text-emerald-700'
-                        : 'bg-blue-100 text-blue-700'
-                    }`}>
-                      {log.actionType}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 text-gray-600">{log.fieldChanged}</td>
-                  <td className="px-4 py-3 text-gray-500 max-w-md truncate">{log.notes}</td>
+              {recentlyDeployed.map(record => (
+                <tr key={record.id} className="hover:bg-gray-50">
+                  <td className="px-4 py-3 font-mono text-xs">{record.deviceSerialNo}</td>
+                  <td className="px-4 py-3 text-gray-700">{record.terminalId || '-'}</td>
+                  <td className="px-4 py-3 text-gray-700">{record.transactingTid || '-'}</td>
+                  <td className="px-4 py-3 text-gray-700">{record.merchantName || '-'}</td>
+                  <td className="px-4 py-3 text-gray-700">{record.phoneNo || '-'}</td>
                 </tr>
               ))}
-              {logs.length === 0 && (
+              {recentlyDeployed.length === 0 && (
                 <tr>
                   <td colSpan={5} className="px-4 py-8 text-center text-gray-400">
-                    No reconciliation activity yet. Run your first daily import.
+                    No deployed terminals yet. New deployments will appear here automatically.
                   </td>
                 </tr>
               )}

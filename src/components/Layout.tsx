@@ -15,7 +15,7 @@ const navItems = [
 
 export const Layout: React.FC = () => {
   const location = useLocation();
-  const { user, signOut } = useAuth();
+  const { user, signOut, sessionWarningVisible, timeRemaining, extendSession } = useAuth();
 
   const filteredNavItems = navItems.filter((item) => {
     if (!user) return false;
@@ -27,6 +27,8 @@ export const Layout: React.FC = () => {
     }
     return false;
   });
+
+  const minutesRemaining = Math.max(1, Math.ceil(timeRemaining / 60));
 
   return (
     <div className="min-h-screen bg-gray-50 flex">
@@ -70,6 +72,30 @@ export const Layout: React.FC = () => {
       </aside>
 
       <main className="flex-1 ml-64 overflow-auto">
+        {sessionWarningVisible && user && (
+          <div className="sticky top-0 z-[60] border-b border-amber-200 bg-amber-50 px-6 py-3 shadow-sm">
+            <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+              <p className="text-sm text-amber-800">
+                Your session will expire in about {minutesRemaining} minute{minutesRemaining > 1 ? 's' : ''}. Keep working to stay signed in.
+              </p>
+              <div className="flex gap-2">
+                <button
+                  onClick={extendSession}
+                  className="rounded-lg bg-emerald-600 px-3 py-2 text-sm font-medium text-white hover:bg-emerald-700"
+                >
+                  Stay signed in
+                </button>
+                <button
+                  onClick={() => void signOut('You signed out before your session expired.')}
+                  className="rounded-lg border border-amber-300 px-3 py-2 text-sm font-medium text-amber-800 hover:bg-amber-100"
+                >
+                  Sign out now
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
         <header className="fixed top-0 left-64 right-0 z-50 bg-slate-800 text-slate-100 border-b border-slate-700 shadow-sm">
           <div className="px-8 h-20 flex items-center justify-between">
             <div>
@@ -84,7 +110,7 @@ export const Layout: React.FC = () => {
                 <div className="text-xs text-slate-400">{user?.approved ? 'Approved user' : 'Pending approval'}</div>
               </div>
               <button
-                onClick={signOut}
+                onClick={() => void signOut()}
                 className="inline-flex items-center gap-2 rounded-2xl border border-slate-700 bg-slate-900 px-4 py-2 text-sm text-slate-200 hover:bg-slate-800"
               >
                 <LogOut className="w-4 h-4" />

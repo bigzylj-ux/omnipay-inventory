@@ -1,6 +1,7 @@
 import React from 'react';
 import { Navigate, Outlet } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { LoadingState } from './LoadingState';
 
 interface ProtectedRouteProps {
   allowedRoles?: Array<'admin' | 'user'>;
@@ -12,10 +13,8 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ allowedRoles = [
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-950 text-white">
-        <div className="rounded-3xl border border-slate-800 bg-slate-900/95 px-8 py-6 text-center">
-          <p>Loading session…</p>
-        </div>
+      <div className="min-h-screen bg-slate-950 px-6 py-12 text-white">
+        <LoadingState label="Preparing your session" subLabel="Checking your access and workspace status." />
       </div>
     );
   }

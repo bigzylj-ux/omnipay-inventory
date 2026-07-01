@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { hasSupabaseConfig, supabase } from '../lib/supabaseClient';
 import type { AppUser } from '../types';
 
@@ -6,10 +6,13 @@ interface AuthContextValue {
   user: AppUser | null;
   loading: boolean;
   error: string | null;
+  sessionWarningVisible: boolean;
+  timeRemaining: number;
+  extendSession: () => void;
   signIn: (email: string, password: string) => Promise<boolean>;
   signUp: (email: string, password: string) => Promise<boolean>;
   resetPassword: (email: string) => Promise<boolean>;
-  signOut: () => Promise<void>;
+  signOut: (reason?: string) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
@@ -135,10 +138,62 @@ const fetchProfile = async (userId: string): Promise<AppUser | null> => {
   };
 };
 
+const SESSION_TIMEOUT_MS = 30 * 60 * 1000;
+const WARNING_WINDOW_MS = 5 * 60 * 1000;
+
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<AppUser | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [sessionWarningVisible, setSessionWarningVisible] = useState(false);
+  const [timeRemaining, setTimeRemaining] = useState(0);
+  const sessionExpiryRef = useRef<number | null>(null);
+
+  const resetSessionTimer = useCallback(() => {
+    if (!user) {
+      sessionExpiryRef.current = null;
+      setSessionWarningVisible(false);
+      setTimeRemaining(0);
+      return;
+    }
+
+    sessionExpiryRef.current = Date.now() + SESSION_TIMEOUT_MS;
+    setSessionWarningVisible(false);
+    setTimeRemaining(0);
+  }, [user]);
+
+  const signOut = useCallback(async (reason?: string): Promise<void> => {
+    if (!hasSupabaseConfig || !supabase) {
+      setUser(null);
+      setError(reason ?? null);
+      setSessionWarningVisible(false);
+      setTimeRemaining(0);
+      sessionExpiryRef.current = null;
+      return;
+    }
+
+    setLoading(true);
+    setError(reason ?? null);
+
+    try {
+      await supabase.auth.signOut();
+    } catch (err) {
+      console.error('Session sign-out failed', err);
+    } finally {
+      setUser(null);
+      setLoading(false);
+      setSessionWarningVisible(false);
+      setTimeRemaining(0);
+      sessionExpiryRef.current = null;
+    }
+  }, []);
+
+  const extendSession = useCallback(() => {
+    sessionExpiryRef.current = Date.now() + SESSION_TIMEOUT_MS;
+    setSessionWarningVisible(false);
+    setTimeRemaining(0);
+    setError(null);
+  }, []);
 
   useEffect(() => {
     const loadSession = async () => {
@@ -185,6 +240,52 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     return undefined;
   }, []);
+
+  useEffect(() => {
+    if (!user) {
+      sessionExpiryRef.current = null;
+      setSessionWarningVisible(false);
+      setTimeRemaining(0);
+      return;
+    }
+
+    resetSessionTimer();
+
+    const activityEvents = ['mousemove', 'keydown', 'click', 'scroll', 'touchstart'];
+    const handleActivity = () => {
+      sessionExpiryRef.current = Date.now() + SESSION_TIMEOUT_MS;
+      setSessionWarningVisible(false);
+      setTimeRemaining(0);
+    };
+
+    activityEvents.forEach((eventName) => {
+      window.addEventListener(eventName, handleActivity, { passive: true });
+    });
+
+    const interval = window.setInterval(() => {
+      if (!sessionExpiryRef.current) {
+        return;
+      }
+
+      const remaining = sessionExpiryRef.current - Date.now();
+      const secondsRemaining = Math.max(0, Math.ceil(remaining / 1000));
+      setTimeRemaining(secondsRemaining);
+
+      if (secondsRemaining > 0 && remaining <= WARNING_WINDOW_MS) {
+        setSessionWarningVisible(true);
+      } else if (secondsRemaining <= 0) {
+        setSessionWarningVisible(false);
+        void signOut('Your session expired due to inactivity. Please sign in again.');
+      }
+    }, 1000);
+
+    return () => {
+      activityEvents.forEach((eventName) => {
+        window.removeEventListener(eventName, handleActivity);
+      });
+      window.clearInterval(interval);
+    };
+  }, [resetSessionTimer, signOut, user]);
 
   const signIn = async (email: string, password: string): Promise<boolean> => {
     if (!hasSupabaseConfig || !supabase) {
@@ -306,30 +407,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const signOut = async () => {
-    if (!hasSupabaseConfig || !supabase) {
-      setUser(null);
-      return;
-    }
-
-    setLoading(true);
-    setError(null);
-    await supabase.auth.signOut();
-    setUser(null);
-    setLoading(false);
-  };
-
   const value = useMemo(
     () => ({
       user,
       loading,
       error,
+      sessionWarningVisible,
+      timeRemaining,
+      extendSession,
       signIn,
       signUp,
       resetPassword,
       signOut,
     }),
-    [user, loading, error]
+    [user, loading, error, sessionWarningVisible, timeRemaining, extendSession, signIn, signUp, resetPassword, signOut]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

@@ -4,6 +4,7 @@ import { InventoryRecord, normalizeStatus, SYSTEM_STATUSES } from '../types';
 import { formatDate, getStatusColor } from '../utils';
 import { Search, Download, ChevronDown, ChevronUp, Edit2, Save, X } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
+import { LoadingState } from './LoadingState';
 
 export const InventoryPage: React.FC = () => {
   const { user } = useAuth();
@@ -139,8 +140,7 @@ export const InventoryPage: React.FC = () => {
       };
       await updateInventoryRecord(updatedRecord);
       
-      // Update records in state
-      setRecords(records.map(r => r.id === updatedRecord.id ? updatedRecord : r));
+      setRecords((prev) => prev.map(r => r.id === updatedRecord.id ? updatedRecord : r));
       setSelectedRecord(updatedRecord);
       setIsEditing(false);
       setEditData({});
@@ -226,9 +226,7 @@ export const InventoryPage: React.FC = () => {
       </div>
 
       {loading ? (
-        <div className="bg-white rounded-xl shadow-sm border p-8 flex items-center justify-center">
-          <div className="text-center text-gray-500">Loading inventory...</div>
-        </div>
+        <LoadingState label="Loading inventory" subLabel="Preparing the latest terminal records and statuses." />
       ) : records.length === 0 ? (
         <div className="bg-white rounded-xl shadow-sm border p-8 flex items-center justify-center">
           <div className="text-center text-gray-500">No inventory records found. Please import data first.</div>
@@ -403,7 +401,34 @@ export const InventoryPage: React.FC = () => {
                     <input
                       type="text"
                       value={editData.merchantName || ''}
-                      onChange={e => setEditData({...editData, merchantName: e.target.value})}
+                      disabled
+                      className="w-full px-3 py-2 border rounded-lg bg-gray-100 text-gray-600"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs text-gray-500 mb-1 block">Terminal ID</label>
+                    <input
+                      type="text"
+                      value={editData.terminalId || ''}
+                      disabled
+                      className="w-full px-3 py-2 border rounded-lg bg-gray-100 text-gray-600"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs text-gray-500 mb-1 block">Transaction Terminal ID (TID)</label>
+                    <input
+                      type="text"
+                      value={editData.transactingTid || ''}
+                      disabled
+                      className="w-full px-3 py-2 border rounded-lg bg-gray-100 text-gray-600"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs text-gray-500 mb-1 block">SIM Serial Number</label>
+                    <input
+                      type="text"
+                      value={editData.simSerial || ''}
+                      onChange={e => setEditData({...editData, simSerial: e.target.value})}
                       className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-emerald-500"
                     />
                   </div>
@@ -431,12 +456,16 @@ export const InventoryPage: React.FC = () => {
                   </div>
                   <div>
                     <label className="text-xs text-gray-500 mb-1 block">Category</label>
-                    <input
-                      type="text"
+                    <select
                       value={editData.category || ''}
                       onChange={e => setEditData({...editData, category: e.target.value})}
                       className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-emerald-500"
-                    />
+                    >
+                      <option value="">Select Category</option>
+                      {categories.map(categoryOption => (
+                        <option key={categoryOption} value={categoryOption}>{categoryOption}</option>
+                      ))}
+                    </select>
                   </div>
                   <div>
                     <label className="text-xs text-gray-500 mb-1 block">Location</label>

@@ -26,6 +26,9 @@ export const LoginPage: React.FC = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 text-white flex items-center justify-center px-4 py-8">
       <div className="w-full max-w-xl rounded-[2rem] border border-slate-800 bg-slate-900/95 p-10 shadow-2xl shadow-black/40">
+        <Link to="/" className="mb-6 inline-flex items-center text-sm font-medium text-emerald-300 transition hover:text-emerald-200">
+          ← Back to home
+        </Link>
         <div className="mb-8 text-center">
           <p className="text-sm uppercase tracking-[0.35em] text-emerald-400">Welcome back</p>
           <h1 className="mt-4 text-3xl font-semibold">Login to your OmniPay workspace</h1>
